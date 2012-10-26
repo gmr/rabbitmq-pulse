@@ -114,13 +114,27 @@ publish_message(Channel, Exchange, RoutingKey, Message, Type) ->
     Content = #amqp_msg{props = Properties, payload = Message},
     amqp_channel:call(Channel, BasicPublish, Content).
 
+
+process_cluster(Channel, Exchange) ->
+  Overview = rabbit_mgmt_db:get_overview(),
+  publish_message(Channel, Exchange, <<"overview">>,
+                  iolist_to_binary(mochijson2:encode(Overview)),
+                  <<"rabbitmq cluster overview">>).
+
 process_node(Channel, Exchange, [Node]) ->
     {RoutingKey, Message} = node_stats(Node),
     publish_message(Channel, Exchange, RoutingKey, Message, <<"rabbitmq node stats">>).
 
+
+%process_queues(Channel, Exchange, [Queue]) ->
+
+
 process_interval(Channel, Exchange) ->
+    process_cluster(Channel, Exchange),
     Nodes = rabbit_mgmt_wm_nodes:all_nodes(),
-    process_node(Channel, Exchange, Nodes).
+    process_node(Channel, Exchange, Nodes),
+    Queues = rabbit_amqqueue:list().
+    %process_queue(Channel, Exchange, Equeues).
 
 start_timer(Duration) ->
     timer:apply_after(Duration, ?MODULE, handle_interval, []).

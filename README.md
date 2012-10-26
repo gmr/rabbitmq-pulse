@@ -5,8 +5,16 @@ making cluster monitoring a push event instead of something you poll for.
 
 Overview
 --------
-The rabbitmq-pulse plugin will publish node statistics to a topic exchange with a routing key of node.[hostname]. The
-message is a JSON serialized payload of data provided by the rabbitmq-management plugin.
+The rabbitmq-pulse plugin will publish cluster, node and queue statistics to a topic exchange with varying routing keys to
+ allow for stats at multiple layers of granularity.
+
+The messages are JSON serialized data provided by the rabbitmq-management plugin.
+
+Message Types
+-------------
+- cluster overview: High-level cluster overview data
+- node stats: Per-node messages
+- queue stats: Per-queue messages
 
 Installation
 ------------
@@ -30,8 +38,91 @@ rabbitmq_pulse stanza in the rabbitmq.config file for the value you would like t
                         {exchange, <<"rabbitmq-pulse">>},
                         {interval, 5000}]}]
 
-Example Node Message
---------------------
+Examples
+--------
+
+_Cluster Overview Message_
+
+The following is an example cluster overview message:
+
+    Exchange:          rabbitmq-pulse
+    Routing Key:       overview
+
+    Properties
+
+        app_id:        rabbitmq-pulse
+        content_type:  application/json
+        delivery_mode: 1
+        timestamp:     1351221662
+        type:          rabbitmq cluster overview
+
+    Message:
+
+        {
+            "message_stats": {
+                "ack": 61828830,
+                "ack_details": {
+                    "interval": 13691029994,
+                    "last_event": 1351225207219,
+                    "rate": 1657.4946825255636
+                },
+                "confirm": 587185321,
+                "confirm_details": {
+                    "interval": 14440907038,
+                    "last_event": 1351225202580,
+                    "rate": 940.2572840257346
+                },
+                "deliver": 61829392,
+                "deliver_details": {
+                    "interval": 13691029994,
+                    "last_event": 1351225207219,
+                    "rate": 1655.3086640878523
+                },
+                "deliver_get": 61829392,
+                "deliver_get_details": {
+                    "interval": 13691029994,
+                    "last_event": 1351225207219,
+                    "rate": 1655.3086640878523
+                },
+                "publish": 1194850838,
+                "publish_details": {
+                    "interval": 514892992009,
+                    "last_event": 1351225207219,
+                    "rate": 1748.604888221129
+                },
+                "redeliver": 3566,
+                "redeliver_details": {
+                    "interval": 13691029994,
+                    "last_event": 1351225207219,
+                    "rate": 0.5793280232749254
+                }
+            },
+            "queue_totals": {
+                "messages": 37014,
+                "messages_details": {
+                    "interval": 118795693987,
+                    "last_event": 1351225206950,
+                    "rate": 138.75356292893883
+                },
+                "messages_ready": 36410,
+                "messages_ready_details": {
+                    "interval": 118795693987,
+                    "last_event": 1351225206950,
+                    "rate": 113.47632183168328
+                },
+                "messages_unacknowledged": 604,
+                "messages_unacknowledged_details": {
+                    "interval": 118795693987,
+                    "last_event": 1351225206950,
+                    "rate": 25.277241097255544
+                }
+            }
+        }
+
+
+
+_Node Message_
+
 The following is an example stats message for a node:
 
     Exchange:          rabbitmq-pulse

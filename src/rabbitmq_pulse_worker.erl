@@ -54,17 +54,17 @@ code_change(_OldVsn, State, _Extra) ->
 %---------------------------
 
 build_stats_message(Node) ->
-  Values = [{Key, Value} || {Key, Value} <- Node, not lists:member(Key, ?IGNORE_KEYS)],
-  iolist_to_binary(mochijson2:encode(Values)).
+    Values = [{Key, Value} || {Key, Value} <- Node, not lists:member(Key, ?IGNORE_KEYS)],
+    iolist_to_binary(mochijson2:encode(Values)).
 
 convert_gregorian_to_julian(GregorianSeconds) ->
-  GregorianSeconds - 719528 * 24 * 3600.
+    GregorianSeconds - 719528 * 24 * 3600.
 
 current_gregorian_timestamp() ->
-  calendar:datetime_to_gregorian_seconds(calendar:now_to_universal_time(now())).
+    calendar:datetime_to_gregorian_seconds(calendar:now_to_universal_time(now())).
 
 current_timestamp() ->
-  convert_gregorian_to_julian(current_gregorian_timestamp()).
+    convert_gregorian_to_julian(current_gregorian_timestamp()).
 
 declare_exchange(Channel) ->
     {ok, Exchange} = application:get_env(rabbitmq_pulse, exchange),
@@ -79,44 +79,44 @@ get_routing_key(Type, Node) ->
     iolist_to_binary(string:join([Type, Host], ".")).
 
 handle_interval() ->
-  gen_server:cast({global, ?MODULE}, handle_interval).
+    gen_server:cast({global, ?MODULE}, handle_interval).
 
 node_stats(Node) ->
-  {get_routing_key("node", Node), build_stats_message(Node)}.
+    {get_routing_key("node", Node), build_stats_message(Node)}.
 
 open() ->
-  AdapterInfo = #adapter_info{name = <<"rabbitmq_pulse">>},
-  {ok, Username} = application:get_env(rabbitmq_pulse, username),
-  {ok, VirtualHost} = application:get_env(rabbitmq_pulse, virtual_host),
-  case amqp_connection:start(#amqp_params_direct{username = Username,
-  virtual_host = VirtualHost,
-  adapter_info = AdapterInfo}) of
-    {ok, Connection} ->
-      case amqp_connection:open_channel(Connection) of
-        {ok, Channel} ->
-          rabbit_log:info("rabbitmq_pulse plugin started~n"),
-          {ok, Connection, Channel};
-        E             ->
-            catch amqp_connection:close(Connection),
-          rabbit_log:warning("error starting rabbitmq_pulse plugin: ~s~n", E),
-          E
-      end;
-    E -> E
-  end.
+    AdapterInfo = #adapter_info{name = <<"rabbitmq_pulse">>},
+    {ok, Username} = application:get_env(rabbitmq_pulse, username),
+    {ok, VirtualHost} = application:get_env(rabbitmq_pulse, virtual_host),
+    case amqp_connection:start(#amqp_params_direct{username = Username,
+                                                   virtual_host = VirtualHost,
+                                                   adapter_info = AdapterInfo}) of
+        {ok, Connection} ->
+            case amqp_connection:open_channel(Connection) of
+                {ok, Channel} ->
+                    rabbit_log:info("rabbitmq_pulse plugin started~n"),
+                    {ok, Connection, Channel};
+                E             ->
+                    catch amqp_connection:close(Connection),
+                    rabbit_log:warning("error starting rabbitmq_pulse plugin: ~s~n", E),
+                    E
+            end;
+        E -> E
+    end.
 
 publish_message(Channel, Exchange, RoutingKey, Message, Type) ->
-  BasicPublish = #'basic.publish'{exchange = Exchange, routing_key = RoutingKey},
-  Properties = #'P_basic'{app_id = <<"rabbitmq-pulse">>,
-  content_type = <<"application/json">>,
-  delivery_mode = 1,
-  timestamp = current_timestamp(),
-  type = Type},
-  Content = #amqp_msg{props = Properties, payload = Message},
-  amqp_channel:call(Channel, BasicPublish, Content).
+    BasicPublish = #'basic.publish'{exchange = Exchange, routing_key = RoutingKey},
+    Properties = #'P_basic'{app_id = <<"rabbitmq-pulse">>,
+                            content_type = <<"application/json">>,
+                            delivery_mode = 1,
+                            timestamp = current_timestamp(),
+                            type = Type},
+    Content = #amqp_msg{props = Properties, payload = Message},
+    amqp_channel:call(Channel, BasicPublish, Content).
 
 process_node(Channel, Exchange, [Node]) ->
-  {RoutingKey, Message} = node_stats(Node),
-  publish_message(Channel, Exchange, RoutingKey, Message, <<"rabbitmq node stats">>).
+    {RoutingKey, Message} = node_stats(Node),
+    publish_message(Channel, Exchange, RoutingKey, Message, <<"rabbitmq node stats">>).
 
 process_interval(Channel, Exchange) ->
     Nodes = rabbit_mgmt_wm_nodes:all_nodes(),

@@ -1,6 +1,6 @@
 {application, rabbitmq_pulse,
  [{description, "RabbitMQ State Publishing Plugin"},
-  {vsn, "0.0.1"},
+  {vsn, "0.1.0"},
   {modules, []},
   {registered, []},
   {mod, {rabbitmq_pulse, []}},

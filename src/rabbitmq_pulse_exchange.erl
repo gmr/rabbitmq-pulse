@@ -72,8 +72,8 @@ remove_bindings(Tx, X, Bs) ->
   gen_server:cast(rabbitmq_pulse, {remove_bindings, Tx, X, Bs}),
   rabbit_exchange_type_topic:remove_bindings(Tx, X, Bs).
 
-route(_Exchange, _Delivery) ->
-  [].
+route(X, Delivery) ->
+  rabbit_exchange_type_topic:route(X, Delivery).
 
 serialise_events() ->
   false.

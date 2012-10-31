@@ -127,7 +127,7 @@ The following is an example cluster overview message:
 The following is an example stats message for a node:
 
     Exchange:          rabbitmq-pulse
-    Routing Key:       node.localhost
+    Routing Key:       node.rabbit.localhost
 
     Properties
 

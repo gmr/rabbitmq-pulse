@@ -7,6 +7,6 @@
              rabbitmq_pulse_worker]},
   {registered, []},
   {mod, {rabbitmq_pulse, []}},
-  {env, [{username, <<"guest">>},
-         {interval, 5000}]},
+  {env, [{default_username, <<"guest">>},
+         {default_interval, 5000}]},
   {applications, [kernel, stdlib, rabbit, rabbitmq_management, amqp_client]}]}.

@@ -1,0 +1,7 @@
+.coverage
+.idea
+.DS_Store
+build
+dist
+ebin
+atlassian-ide-plugin.xml

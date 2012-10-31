@@ -1,14 +1,17 @@
-rabbitmq-pulse
+RabbitMQ Pulse
 ==============
-rabbitmq-pulse is an *experimental* plugin that publishes information made available by the rabbitmq-management plugin
-making cluster monitoring a push event instead of something you poll for.
+RabbitMQ Pulse is an *experimental* exchange plugin that publishes information made available by the rabbitmq-management
+plugin making cluster monitoring a push event instead of something you poll for.
 
 Overview
 --------
-The rabbitmq-pulse plugin will publish cluster, node and queue statistics to a topic exchange with varying routing keys to
- allow for stats at multiple layers of granularity.
+The *x-pulse* exchange type added by RabbitMQ Pulse creates a publishing exchange that will send status messages at pre-specified
+intervals to bound objects matching the routing key patterns it uses.
 
-The messages are JSON serialized data provided by the rabbitmq-management plugin.
+The rabbitmq-pulse plugin will publish cluster, node and queue statistics to a topic exchange with varying routing keys to
+ allow for stats at multiple layers of granularity using the same style of routing-key behavior as the topic exchange.
+
+The messages are JSON serialized data with stats provided by the rabbitmq-management plugin.
 
 Message Types
 -------------
@@ -25,23 +28,21 @@ Configuration
 -------------
 Default configuration values:
 
-- username: guest
-- virtual_host: /
-- exchange: rabbitmq-pulse
-- interval: 5000
+- default_username: guest
+- default_interval: 5000
 
 Interval is the number of miliseconds between publishing stats. To change the default configuration values, add a
 rabbitmq_pulse stanza in the rabbitmq.config file for the value you would like to override:
 
-    [{rabbitmq_config, [{username, <<"guest">>},
-                        {virtual_host, <<"/">>},
-                        {exchange, <<"rabbitmq-pulse">>},
-                        {interval, 5000}]}]
+    [{rabbitmq_config, [{default_username, <<"guest">>},
+                        {default_interval, 5000}]}]
+
+To override the default values, specify a username and/or interval as arguments when delcaring a x-pulse exchange.
 
 Examples
 --------
 
-_Cluster Overview Message_
+### Cluster Overview Message
 
 The following is an example cluster overview message:
 
@@ -121,7 +122,7 @@ The following is an example cluster overview message:
 
 
 
-_Node Message_
+### Node Message
 
 The following is an example stats message for a node:
 

@@ -3,138 +3,118 @@
 
 -export([start_link/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
--export([declare_exchange/1, handle_interval/0, process_interval/2, start_timer/1]).
+-export([handle_interval/0, process_interval/2, start_timer/1]).
 
 -include_lib("amqp_client/include/amqp_client.hrl").
+-include("rabbitmq_pulse_worker.hrl").
 
--record(state, {channel, exchange, interval}).
 
+-define(IDLE_INTERVAL, 5000).
 -define(IGNORE_KEYS, [applications, auth_mechanisms, erlang_version, exchange_types, processors, statistics_level]).
 
 start_link() ->
-    gen_server:start_link({global, ?MODULE}, ?MODULE, [], []).
+  gen_server:start_link({global, ?MODULE}, ?MODULE, [], []).
 
 %---------------------------
 % Gen Server Implementation
 % --------------------------
 
 init([]) ->
-    {ok, Interval} = application:get_env(rabbitmq_pulse, interval),
-    rabbit_log:info("Pulse interval: ~p~n", [Interval]),
-    case open() of
-        {ok, _, Channel} ->
-            Exchange = declare_exchange(Channel),
-            start_timer(Interval),
-            {ok, #state{channel = Channel, exchange= Exchange, interval = Interval}};
-        E ->
-            {stop, E}
-    end.
+  register(rabbitmq_pulse, self()),
+  Exchanges = rabbitmq_pulse_lib:pulse_exchanges(),
+  Connections = rabbitmq_pulse_lib:establish_connections(Exchanges),
+  rabbit_log:info("rabbitmq-pulse initialized~n"),
+  {ok, #rabbitmq_pulse_state{connections=Connections, exchanges=Exchanges}}.
 
-handle_call(_Msg, _From, State) ->
-    {reply, unknown_command, State}.
+handle_call(_Msg, _From, _State) ->
+  {noreply, unknown_command, _State}.
 
-handle_cast(handle_interval, State = #state{channel = Channel, exchange = Exchange, interval = Interval}) ->
-    process_interval(Channel, Exchange),
-    start_timer(Interval),
-    {noreply, State};
+handle_cast({on_exchange_timer, _Exchange}, State=#rabbitmq_pulse_state{connections=_Connections, exchanges=_Exchanges}) ->
+  {noreply, State};
+
+handle_cast({add_binding, Tx, X, B}, State) ->
+  rabbit_log:info("add_binding: ~p ~p ~p ~p ~n", [Tx, X, B, State]),
+  {noreply, State};
+
+handle_cast({create, X = #exchange{name = #resource{virtual_host=VirtualHost, name=Name}, arguments = Args}}, State) ->
+  rabbit_log:info("create: ~p ~p ~p ~p ~n", [VirtualHost, Name, Args, State]),
+  {noreply, State};
+
+handle_cast({delete, X, _Bs}, State) ->
+  rabbit_log:info("delete: ~p ~p ~p ~n", [X, _Bs, State]),
+  {ok, State};
+
+handle_cast({policy_changed, _Tx, _X1, _X2}, State) ->
+  rabbit_log:info("policy_changed: ~p, ~p, ~p ~p ~n", [_Tx, _X1, _X2, State]),
+  {noreply, State};
+
+handle_cast({recover, Exchange, Bs}, State) ->
+  rabbit_log:info("recover: ~p ~p ~n", [Exchange, Bs, State]),
+  {noreply, State};
+
+handle_cast({remove_bindings, Tx, X, Bs}, State) ->
+  rabbit_log:info("remove_binding: ~p ~p ~p ~p ~n", [Tx, X, Bs, State]),
+  {noreply, State};
 
 handle_cast(_, State) ->
-    {noreply, State}.
+  {noreply, State}.
 
 handle_info(_Info, State) ->
-    {noreply, State}.
+  {noreply, State}.
 
-terminate(_, #state{channel = Channel}) ->
-    amqp_channel:call(Channel, #'channel.close'{}),
-    ok.
+terminate(_, #rabbitmq_pulse_state{connections=_Connections}) ->
+  % Close connections
+  % amqp_channel:call(Channel, #'channel.close'{}),
+  ok.
 
 code_change(_OldVsn, State, _Extra) ->
-    {ok, State}.
+  {ok, State}.
 
 %---------------------------
 
+handle_interval() ->
+  gen_server:cast({global, ?MODULE}, handle_interval).
+
+
+
 build_stats_message(Node) ->
-    Values = [{Key, Value} || {Key, Value} <- Node, not lists:member(Key, ?IGNORE_KEYS)],
-    iolist_to_binary(mochijson2:encode(Values)).
+  Values = [{Key, Value} || {Key, Value} <- Node, not lists:member(Key, ?IGNORE_KEYS)],
+  iolist_to_binary(mochijson2:encode(Values)).
 
-convert_gregorian_to_julian(GregorianSeconds) ->
-    GregorianSeconds - 719528 * 24 * 3600.
 
-current_gregorian_timestamp() ->
-    calendar:datetime_to_gregorian_seconds(calendar:now_to_universal_time(now())).
-
-current_timestamp() ->
-    convert_gregorian_to_julian(current_gregorian_timestamp()).
-
-declare_exchange(Channel) ->
-    {ok, Exchange} = application:get_env(rabbitmq_pulse, exchange),
-    amqp_channel:call(Channel, #'exchange.declare'{exchange = Exchange,
-                                                   durable = true,
-                                                   type = <<"topic">>}),
-    Exchange.
 
 get_routing_key(Type, Node) ->
-    {name, Name} = lists:nth(1, Node),
-    [_, Host] = string:tokens(atom_to_list(Name), "@"),
-    iolist_to_binary(string:join([Type, Host], ".")).
+  {name, Name} = lists:nth(1, Node),
+  [_, Host] = string:tokens(atom_to_list(Name), "@"),
+  iolist_to_binary(string:join([Type, Host], ".")).
 
-handle_interval() ->
-    gen_server:cast({global, ?MODULE}, handle_interval).
+
 
 node_stats(Node) ->
-    {get_routing_key("node", Node), build_stats_message(Node)}.
+  {get_routing_key("node", Node), build_stats_message(Node)}.
 
-open() ->
-    AdapterInfo = #adapter_info{name = <<"rabbitmq_pulse">>},
-    {ok, Username} = application:get_env(rabbitmq_pulse, username),
-    {ok, VirtualHost} = application:get_env(rabbitmq_pulse, virtual_host),
-    case amqp_connection:start(#amqp_params_direct{username = Username,
-                                                   virtual_host = VirtualHost,
-                                                   adapter_info = AdapterInfo}) of
-        {ok, Connection} ->
-            case amqp_connection:open_channel(Connection) of
-                {ok, Channel} ->
-                    rabbit_log:info("rabbitmq_pulse plugin started~n"),
-                    {ok, Connection, Channel};
-                E             ->
-                    catch amqp_connection:close(Connection),
-                    rabbit_log:warning("error starting rabbitmq_pulse plugin: ~s~n", E),
-                    E
-            end;
-        E -> E
-    end.
 
-publish_message(Channel, Exchange, RoutingKey, Message, Type) ->
-    BasicPublish = #'basic.publish'{exchange = Exchange, routing_key = RoutingKey},
-    Properties = #'P_basic'{app_id = <<"rabbitmq-pulse">>,
-                            content_type = <<"application/json">>,
-                            delivery_mode = 1,
-                            timestamp = current_timestamp(),
-                            type = Type},
-    Content = #amqp_msg{props = Properties, payload = Message},
-    amqp_channel:call(Channel, BasicPublish, Content).
+
 
 
 process_cluster(Channel, Exchange) ->
   Overview = rabbit_mgmt_db:get_overview(),
-  publish_message(Channel, Exchange, <<"overview">>,
-                  iolist_to_binary(mochijson2:encode(Overview)),
-                  <<"rabbitmq cluster overview">>).
+  rabbitmq_pulse_lib:publish_message(Channel, Exchange, <<"overview">>,
+                                      iolist_to_binary(mochijson2:encode(Overview)),
+                                      <<"rabbitmq cluster overview">>).
 
 process_node(Channel, Exchange, [Node]) ->
-    {RoutingKey, Message} = node_stats(Node),
-    publish_message(Channel, Exchange, RoutingKey, Message, <<"rabbitmq node stats">>).
-
+  {RoutingKey, Message} = node_stats(Node),
+  rabbitmq_pulse_lib:publish_message(Channel, Exchange, RoutingKey, Message, <<"rabbitmq node stats">>).
 
 %process_queues(Channel, Exchange, [Queue]) ->
 
-
 process_interval(Channel, Exchange) ->
-    process_cluster(Channel, Exchange),
-    Nodes = rabbit_mgmt_wm_nodes:all_nodes(),
-    process_node(Channel, Exchange, Nodes),
-    Queues = rabbit_amqqueue:list().
-    %process_queue(Channel, Exchange, Equeues).
+  process_cluster(Channel, Exchange),
+  Nodes = rabbit_mgmt_wm_nodes:all_nodes(),
+  process_node(Channel, Exchange, Nodes),
+  Queues = rabbit_amqqueue:list().
+  %process_queue(Channel, Exchange, Equeues).
 
 start_timer(Duration) ->
-    timer:apply_after(Duration, ?MODULE, handle_interval, []).
+  timer:apply_after(Duration, ?MODULE, idle_interval, []).

@@ -1,11 +1,12 @@
 {application, rabbitmq_pulse,
  [{description, "RabbitMQ State Publishing Plugin"},
   {vsn, "0.1.0"},
-  {modules, []},
+  {modules, [rabbitmq_pulse_lib,
+             rabbitmq_pulse_exchange,
+             rabbitmq_pulse_sup,
+             rabbitmq_pulse_worker]},
   {registered, []},
   {mod, {rabbitmq_pulse, []}},
   {env, [{username, <<"guest">>},
-         {virtual_host, <<"/">>},
-         {exchange, <<"rabbitmq-pulse">>},
          {interval, 5000}]},
-  {applications, [kernel, stdlib, rabbit, amqp_client]}]}.
+  {applications, [kernel, stdlib, rabbit, rabbitmq_management, amqp_client]}]}.

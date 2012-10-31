@@ -10,8 +10,10 @@ Overview
 The *x-pulse* exchange type added by RabbitMQ Pulse creates a publishing exchange that will send status messages at pre-specified
 intervals to bound objects matching the routing key patterns it uses.
 
-The rabbitmq-pulse plugin will publish cluster, node and queue statistics to a topic exchange with varying routing keys to
- allow for stats at multiple layers of granularity using the same style of routing-key behavior as the topic exchange.
+The rabbitmq-pulse plugin will publish cluster, node and queue statistics to a topic *like* exchange with varying routing keys to
+ allow for stats at multiple layers of granularity. For example, to get all stats for a server with a hostname of megabunny,
+ you could bind to *.rabbit.megabunny. Or to get node stats for all hosts, you could do node.rabbit.*.  RabbitMQ Pulse uses
+ a similar style of routing-key behavior as the topic exchange, but without the partial word matching (ie no node.rab*.*).
 
 The messages are JSON serialized data with stats provided by the rabbitmq-management plugin.
 
@@ -19,7 +21,6 @@ Todo
 ----
 - Add queue stats
 - Add graphite format publishing
-- Handle pre-routing descisions the same way rabbit_exchange_type_topic does.
 - Handle shutdown cleanly
 - Handle add_binding/remove_binding, create, delete properly
 

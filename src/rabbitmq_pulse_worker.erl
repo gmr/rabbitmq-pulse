@@ -15,8 +15,6 @@ start_timer(Duration, Exchange) ->
   timer:apply_after(Duration, ?MODULE, handle_interval, [Exchange]).
 
 start_exchange_timer(Exchange) ->
-  rabbit_log:info("Starting timer for ~s for ~p seconds~n", [Exchange#rabbitmq_pulse_exchange.exchange,
-                                                             Exchange#rabbitmq_pulse_exchange.interval]),
   start_timer(Exchange#rabbitmq_pulse_exchange.interval, Exchange#rabbitmq_pulse_exchange.exchange).
 
 start_exchange_timers(Exchanges) ->
@@ -40,10 +38,11 @@ init([]) ->
 handle_call(_Msg, _From, _State) ->
   {noreply, unknown_command, _State}.
 
-handle_cast({handle_interval, Exchange}, State) ->
-  rabbitmq_pulse_lib:process_interval(Exchange,
-                                      State#rabbitmq_pulse_state.exchanges,
-                                      State#rabbitmq_pulse_state.connections),
+handle_cast({handle_interval, ExchangeName}, State) ->
+  Exchange = rabbitmq_pulse_lib:process_interval(ExchangeName,
+                                                 State#rabbitmq_pulse_state.exchanges,
+                                                 State#rabbitmq_pulse_state.connections),
+  start_exchange_timer(Exchange),
   {noreply, State};
 
 handle_cast({add_binding, Tx, X, B}, State) ->

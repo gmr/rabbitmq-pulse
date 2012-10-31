@@ -3,6 +3,8 @@ RabbitMQ Pulse
 RabbitMQ Pulse is an *experimental* exchange plugin that publishes information made available by the rabbitmq-management
 plugin making cluster monitoring a push event instead of something you poll for.
 
+This is a work in progress and is not meant for production systems (yet).
+
 Overview
 --------
 The *x-pulse* exchange type added by RabbitMQ Pulse creates a publishing exchange that will send status messages at pre-specified
@@ -12,6 +14,14 @@ The rabbitmq-pulse plugin will publish cluster, node and queue statistics to a t
  allow for stats at multiple layers of granularity using the same style of routing-key behavior as the topic exchange.
 
 The messages are JSON serialized data with stats provided by the rabbitmq-management plugin.
+
+Todo
+----
+- Add queue stats
+- Add graphite format publishing
+- Handle pre-routing descisions the same way rabbit_exchange_type_topic does.
+- Handle shutdown cleanly
+- Handle add_binding/remove_binding, create, delete properly
 
 Message Types
 -------------

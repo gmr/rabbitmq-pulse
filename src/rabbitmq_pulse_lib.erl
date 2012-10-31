@@ -77,7 +77,6 @@ remapped_exchange(Exchange) ->
                                       exchange=Name, interval=get_interval(Args), bindings=[]},
   Remapped.
 
-
 binding_exchange_and_routing_key([{source_name, Exchange},{source_kind,exchange},{destination_name,_},{destination_kind,queue},{routing_key,RoutingKey},{arguments,_}]) ->
   {Exchange, RoutingKey}.
 
@@ -96,9 +95,6 @@ filter_pulse_exchange({exchange,{resource, _, exchange, _}, _, _, _, _, _, _}) -
 get_bindings(Exchange) ->
   filter_bindings(Exchange#rabbitmq_pulse_exchange.exchange,
                   rabbit_binding:info_all(Exchange#rabbitmq_pulse_exchange.virtual_host)).
-
-
-
 
 add_binding(Exchange) ->
   #rabbitmq_pulse_exchange{virtual_host=Exchange#rabbitmq_pulse_exchange.virtual_host,
@@ -192,13 +188,7 @@ get_routing_key_tuple(Type, Value) ->
 
 get_routing_key(Type, Node) ->
   Value = tuple_to_list(get_routing_key_tuple(Type, get_node_name(Node))),
-  rabbit_log:info("Routing key to make: ~p~n", [Value]),
   iolist_to_binary(string:join(Value, ".")).
-
-node_stats(Node) ->
-  {get_routing_key("node", Node), build_stats_message(Node)}.
-
-
 
 get_binding_tuple(Value) ->
   list_to_tuple(get_binding_tuple(Value, [], [])).
@@ -244,35 +234,39 @@ should_publish_node_stats(Exchange, Node) ->
   lists:any(fun (V) -> V =:= true end,
             [routing_key_match(get_binding_tuple(Binding), NodeTuple) || Binding <- Exchange#rabbitmq_pulse_exchange.bindings]).
 
+node_stats(Node) ->
+  {get_routing_key("node", Node), build_stats_message(Node)}.
+
+
 process_node(Channel, Exchange, [Node]) ->
   case should_publish_node_stats(Exchange, Node) of
     true ->
       {RoutingKey, Message} = node_stats(Node),
-      publish_message(Channel, Exchange, RoutingKey, Message, <<"rabbitmq node stats">>)
+      publish_message(Channel, Exchange, RoutingKey, Message, <<"rabbitmq node stats">>),
+      ok;
+    false ->
+      ok
   end.
 
 process_overview(Exchange, Channel) ->
   Overview = rabbit_mgmt_db:get_overview(),
   publish_message(Channel, Exchange, <<"overview">>, iolist_to_binary(mochijson2:encode(Overview)), <<"rabbitmq cluster overview">>).
 
-
 %process_queues(Channel, Exchange, [Queue]) ->
 process_binding_overview(Exchange, Channel) ->
   case length([true || Binding <- Exchange#rabbitmq_pulse_exchange.bindings, lists:member(Binding, ?OVERVIEW_BINDINGS)]) of
     0 ->
-      none;
+      ok;
     _ ->
       process_overview(Exchange, Channel),
       ok
     end.
-
 
 process_exchange_bindings(Exchange, Channel) ->
   process_binding_overview(Exchange, Channel),
   Nodes = rabbit_mgmt_wm_nodes:all_nodes(),
   process_node(Channel, Exchange, Nodes),
   Queues = rabbit_amqqueue:list().
-
 
 has_exchange(Connection, Exchange) ->
   lists:member(Exchange, Connection#rabbitmq_pulse_connection.exchanges).
@@ -287,6 +281,6 @@ get_channel(Exchange, Connections) ->
 
 process_interval(ExchangeName, Exchanges, [Connections]) ->
   [Exchange] = [Exchange || Exchange <- Exchanges, Exchange#rabbitmq_pulse_exchange.exchange =:= ExchangeName],
-  rabbit_log:info('Processing interval for ~p~n', [ExchangeName]),
   Channel = get_channel(Exchange#rabbitmq_pulse_exchange.exchange, Connections),
-  process_exchange_bindings(Exchange, Channel).
+  process_exchange_bindings(Exchange, Channel),
+  Exchange.

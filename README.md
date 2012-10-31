@@ -19,7 +19,10 @@ The messages are JSON serialized data with stats provided by the rabbitmq-manage
 
 Todo
 ----
-- Add queue stats
+- Add the ability to bind to get stats for:
+  - Queues
+  - Connections
+  - Channels
 - Add graphite format publishing
 - Handle shutdown cleanly
 - Handle add_binding/remove_binding, create, delete properly

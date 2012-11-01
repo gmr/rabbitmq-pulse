@@ -3,6 +3,10 @@ RabbitMQ Pulse
 RabbitMQ Pulse is an *experimental* exchange plugin that publishes information made available by the rabbitmq-management
 plugin making cluster monitoring a push event instead of something you poll for.
 
+Messages can be published in JSON format as they would be received from the management API or they can be published
+in a format that is compatible with Graphite's carbon AMQP client, providing conversionless integration into Graphite
+and systems like rocksteady.
+
 This is a work in progress and is not meant for production systems (yet).
 
 Overview
@@ -23,7 +27,6 @@ Todo
   - Queues
   - Connections
   - Channels
-- Add graphite format publishing
 - Handle shutdown cleanly
 - Handle add_binding/remove_binding, create, delete properly
 
@@ -38,8 +41,8 @@ Installation
 Currently, the best way to install the plugin is to follow the instructions at http://www.rabbitmq.com/plugin-development.html and
 setup the rabbitmq-public-umbrella checkout, clone the rabbitmq-pulse directory into it and custom compile the plugin.
 
-Configuration
--------------
+Plugin Configuration
+--------------------
 Default configuration values:
 
 - default_username: guest
@@ -48,17 +51,24 @@ Default configuration values:
 Interval is the number of miliseconds between publishing stats. To change the default configuration values, add a
 rabbitmq_pulse stanza in the rabbitmq.config file for the value you would like to override:
 
-    [{rabbitmq_config, [{default_username, <<"guest">>},
-                        {default_interval, 5000}]}]
+    [{rabbitmq_pulse, [{default_username, <<"guest">>},
+                       {default_interval, 5000},
+                       {default_format, <<"json">>]}]
 
 To override the default values, specify a username and/or interval as arguments when delcaring a x-pulse exchange.
+
+Per-exchange optional configuration values
+------------------------------------------
+
+- username: Username to connect to the vhost as
+- interval: Number of milliseconds between publishing of stats
+- format: The publishing format. Acceptable values are json or graphite.
+
 
 Examples
 --------
 
-### Cluster Overview Message
-
-The following is an example cluster overview message:
+### Cluster Overview Message (JSON)
 
     Exchange:          rabbitmq-pulse
     Routing Key:       overview
@@ -134,16 +144,29 @@ The following is an example cluster overview message:
             }
         }
 
+## Cluster Overview Single Stat Message (Graphite)
 
+    Exchange:      graphite
+    Routing Key:   rabbitmq_pulse.overview.rabbit.localhost.message_stats.deliver_details.rate
 
-### Node Message
+    Properties:
 
-The following is an example stats message for a node:
+        app_id:        rabbitmq-pulse
+        content_type:  application/json
+        delivery_mode: 1
+        timestamp:     1351748994
+        type:          rabbitmq-pulse cluster overview graphite datapoint
+
+    Message:
+
+        rabbitmq_pulse.overview.rabbit.localhost.message_stats.deliver_details.rate 945.8392531255008 1351748994
+
+### Node Message (JSON)
 
     Exchange:          rabbitmq-pulse
     Routing Key:       node.rabbit.localhost
 
-    Properties
+    Properties:
 
         app_id:        rabbitmq-pulse
         content_type:  application/json

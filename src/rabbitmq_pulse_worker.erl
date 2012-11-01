@@ -49,9 +49,9 @@ handle_cast({add_binding, Tx, X, B}, State) ->
   rabbit_log:info("add_binding: ~p ~p ~p ~p ~n", [Tx, X, B, State]),
   {noreply, State};
 
-handle_cast({create, #exchange{name = #resource{virtual_host=VirtualHost, name=Name}, arguments = Args}}, State) ->
-  rabbitmq_pulse_lib:create_exchange(VirtualHost, Name, Args),
-  {noreply, State};
+%handle_cast({create, #exchange{name = #resource{virtual_host=VirtualHost, name=Name}, arguments = Args}}, State) ->
+%  rabbitmq_pulse_lib:create_exchange(VirtualHost, Name, Args),
+%  {noreply, State};
 
 handle_cast({delete, X, _Bs}, State) ->
   rabbit_log:info("delete: ~p ~p ~p ~n", [X, _Bs, State]),

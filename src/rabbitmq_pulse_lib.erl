@@ -46,7 +46,7 @@ add_binding(Exchange) ->
 add_bindings(Exchanges) ->
   [add_binding(Exchange) || Exchange <- Exchanges].
 
-binding_exchange_and_routing_key([{source_name, Exchange},{source_kind,exchange},{destination_name,_},{destination_kind,queue},{routing_key,RoutingKey},{arguments,_}]) ->
+binding_exchange_and_routing_key([{source_name, Exchange}, {source_kind,exchange}, {destination_name,_}, {destination_kind,queue}, {routing_key,RoutingKey}, {arguments,_}]) ->
   {Exchange, RoutingKey}.
 
 distinct_vhost_pairs(Exchanges) ->
@@ -55,10 +55,10 @@ distinct_vhost_pairs(Exchanges) ->
 filter_bindings(Exchange, Bindings) ->
   lists:flatten([RoutingKey ||  {BindingExchange, RoutingKey}  <- remapped_bindings(Bindings), BindingExchange =:= Exchange]).
 
-filter_pulse_exchange(Exchange={exchange,{resource, _, exchange, _}, 'x-pulse', _, _, _, _, _}) ->
+filter_pulse_exchange(Exchange={exchange,{resource, _, exchange, _}, 'x-pulse', _, _, _, _, _, _}) ->
   Exchange;
 
-filter_pulse_exchange({exchange,{resource, _, exchange, _}, _, _, _, _, _, _}) ->
+filter_pulse_exchange({exchange,{resource, _, exchange, _}, _, _, _, _, _, _, _}) ->
   null.
 
 find_connection(Exchange, Connections)->
@@ -66,10 +66,10 @@ find_connection(Exchange, Connections)->
   Connection.
 
 flatten(A, B, Subitem) when is_list(Subitem) ->
-  lists:flatten([[A,B,C,D] || {C, D} <- Subitem]);
+  lists:flatten([[A, B, C, D] || {C, D} <- Subitem]);
 
 flatten(A, B, Subitem) when is_number(Subitem) ->
-  lists:flatten([A,B,Subitem]).
+  lists:flatten([A, B, Subitem]).
 
 get_all_exchanges() ->
   VirtualHosts = get_virtual_hosts(),
@@ -151,6 +151,8 @@ get_interval(Args) ->
         {_, integer, Value} ->
           Value;
         {_, float, Value} ->
+          Value;
+        {_, long, Value} ->
           Value
       end;
     false ->
@@ -212,7 +214,7 @@ remapped_bindings(Bindings) ->
   [binding_exchange_and_routing_key(B) || B <- Bindings].
 
 remapped_exchange(Exchange) ->
-  {exchange,{resource, VirtualHost, exchange, Name}, 'x-pulse', _, _, _, Args, _} = Exchange,
+  {exchange,{resource, VirtualHost, exchange, Name}, 'x-pulse', _, _, _, Args, _, _} = Exchange,
   Remapped = #rabbitmq_pulse_exchange{virtual_host=VirtualHost,
                                       username=get_username(Args),
                                       exchange=Name,
@@ -266,7 +268,7 @@ establish_connections(Exchanges) ->
 
 
 open(VirtualHost, Username) ->
-  AdapterInfo = #adapter_info{name = <<"rabbitmq_pulse">>},
+  AdapterInfo = #amqp_adapter_info{name = <<"rabbitmq_pulse">>},
   case amqp_connection:start(#amqp_params_direct{username = Username,
                                                  virtual_host = VirtualHost,
                                                  adapter_info = AdapterInfo}) of

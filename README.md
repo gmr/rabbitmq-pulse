@@ -85,64 +85,42 @@ Examples
 
         {
             "message_stats": {
-                "ack": 61828830,
-                "ack_details": {
-                    "interval": 13691029994,
-                    "last_event": 1351225207219,
-                    "rate": 1657.4946825255636
-                },
-                "confirm": 587185321,
-                "confirm_details": {
-                    "interval": 14440907038,
-                    "last_event": 1351225202580,
-                    "rate": 940.2572840257346
-                },
-                "deliver": 61829392,
-                "deliver_details": {
-                    "interval": 13691029994,
-                    "last_event": 1351225207219,
-                    "rate": 1655.3086640878523
-                },
-                "deliver_get": 61829392,
-                "deliver_get_details": {
-                    "interval": 13691029994,
-                    "last_event": 1351225207219,
-                    "rate": 1655.3086640878523
-                },
-                "publish": 1194850838,
+                "publish": 8,
                 "publish_details": {
-                    "interval": 514892992009,
-                    "last_event": 1351225207219,
-                    "rate": 1748.604888221129
-                },
-                "redeliver": 3566,
-                "redeliver_details": {
-                    "interval": 13691029994,
-                    "last_event": 1351225207219,
-                    "rate": 0.5793280232749254
+                    "interval": 5736915,
+                    "last_event": 1353718103779,
+                    "rate": 0.6972388470109807
                 }
             },
+            "object_totals": {
+                "channels": 1,
+                "connections": 1,
+                "consumers": 0,
+                "exchanges": 9,
+                "queues": 2
+            },
             "queue_totals": {
-                "messages": 37014,
+                "messages": 10,
                 "messages_details": {
-                    "interval": 118795693987,
-                    "last_event": 1351225206950,
-                    "rate": 138.75356292893883
+                    "interval": 6321630,
+                    "last_event": 1353718104517,
+                    "rate": 0.8336426319843275
                 },
-                "messages_ready": 36410,
+                "messages_ready": 10,
                 "messages_ready_details": {
-                    "interval": 118795693987,
-                    "last_event": 1351225206950,
-                    "rate": 113.47632183168328
+                    "interval": 6321630,
+                    "last_event": 1353718104517,
+                    "rate": 0.8336426319843275
                 },
-                "messages_unacknowledged": 604,
+                "messages_unacknowledged": 0,
                 "messages_unacknowledged_details": {
-                    "interval": 118795693987,
-                    "last_event": 1351225206950,
-                    "rate": 25.277241097255544
+                    "interval": 6321630,
+                    "last_event": 1353718104517,
+                    "rate": 0
                 }
             }
         }
+
 
 ## Cluster Overview Single Stat Message (Graphite)
 
@@ -177,32 +155,40 @@ Examples
     Message:
 
         {
-            "name": "rabbit@localhost",
-            "os_pid": "7499",
-            "type": "disc",
-            "running": true,
-            "disk_free": 169206083584,
+            "contexts": [
+                {
+                    "description": "RabbitMQ Management",
+                    "path": "/",
+                    "port": 15672
+                }, 
+                {
+                    "description": "Redirect to port 15672",
+                    "ignore_in_use": true,
+                    "path": "/",
+                    "port": 55672
+                }
+            ],
+            "disk_free": 388873060352,
             "disk_free_alarm": false,
             "disk_free_limit": 1000000000,
-            "fd_total": 1024,
-            "fd_used": 28,
+            "fd_total": 256,
+            "fd_used": 30,
             "mem_alarm": false,
-            "mem_atom": 703377,
-            "mem_atom_used": 677667,
-            "mem_binary": 150264,
-            "mem_code": 18406789,
-            "mem_ets": 1499064,
-            "mem_limit": 5647935078,
-            "mem_proc": 12891074,
-            "mem_proc_used": 13038914,
-            "mem_used": 38600528,
+            "mem_limit": 12796831334,
+            "mem_used": 41054568,
+            "name": "rabbit@localhost",
+            "os_pid": "38160",
+            "partitions": [],
             "proc_total": 1048576,
-            "proc_used": 228,
+            "proc_used": 246,
             "run_queue": 0,
-            "sockets_total": 829,
-            "sockets_used": 1,
-            "uptime": 6092
+            "running": true,
+            "sockets_total": 138,
+            "sockets_used": 2,
+            "type": "disc",
+            "uptime": 12400
         }
+
 
 ## Queue Message (JSON)
 

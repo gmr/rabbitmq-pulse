@@ -15,7 +15,8 @@ start_timer(Duration, Exchange) ->
   timer:apply_after(Duration, ?MODULE, handle_interval, [Exchange]).
 
 start_exchange_timer(Exchange) ->
-  start_timer(Exchange#rabbitmq_pulse_exchange.interval, Exchange#rabbitmq_pulse_exchange.exchange).
+  start_timer(Exchange#rabbitmq_pulse_exchange.interval,
+              Exchange#rabbitmq_pulse_exchange.exchange).
 
 start_exchange_timers(Exchanges) ->
   [start_exchange_timer(Exchange) || Exchange <- Exchanges].
@@ -44,17 +45,24 @@ handle_cast({handle_interval, ExchangeName}, State) ->
   start_exchange_timer(Exchange),
   {noreply, State};
 
-handle_cast({add_binding, Tx, X, B}, State) ->
-  rabbit_log:info("add_binding: ~p ~p ~p ~p ~n", [Tx, X, B, State]),
-  {noreply, State};
+handle_cast({add_binding, none, _, Binding}, State) ->
+  Exchanges = rabbitmq_pulse_lib:add_binding(State#rabbitmq_pulse_state.exchanges, Binding),
+  NewState = #rabbitmq_pulse_state{connections=State#rabbitmq_pulse_state.connections,
+                                   exchanges=Exchanges},
+  {noreply, NewState};
 
 handle_cast({create, #exchange{name = #resource{virtual_host=VirtualHost, name=Name}, arguments = Args}}, State) ->
-  rabbitmq_pulse_lib:create_exchange(VirtualHost, Name, Args),
-  {noreply, State};
+  {Connections, Exchanges} = rabbitmq_pulse_lib:create_exchange(State#rabbitmq_pulse_state.connections,
+                                                                State#rabbitmq_pulse_state.exchanges,
+                                                                VirtualHost, Name, Args),
+  {noreply, #rabbitmq_pulse_state{connections=Connections, exchanges=Exchanges}};
 
-handle_cast({delete, X, _Bs}, State) ->
-  rabbit_log:info("delete: ~p ~p ~p ~n", [X, _Bs, State]),
-  {ok, State};
+handle_cast({delete, Exchange, _Bs}, State) ->
+  {Connections, Exchanges} = rabbitmq_pulse_lib:delete_exchange(State#rabbitmq_pulse_state.connections,
+                                                                State#rabbitmq_pulse_state.exchanges,
+                                                                Exchange),
+  rabbit_log:info("Post delete:~n~p~n~p~n", [Connections, Exchanges]),
+  {noreply, #rabbitmq_pulse_state{connections=Connections, exchanges=Exchanges}};
 
 handle_cast({policy_changed, _Tx, _X1, _X2}, State) ->
   rabbit_log:info("policy_changed: ~p, ~p, ~p ~p ~n", [_Tx, _X1, _X2, State]),
@@ -64,9 +72,11 @@ handle_cast({recover, Exchange, Bs}, State) ->
   rabbit_log:info("recover: ~p ~p ~n", [Exchange, Bs, State]),
   {noreply, State};
 
-handle_cast({remove_bindings, Tx, X, Bs}, State) ->
-  rabbit_log:info("remove_binding: ~p ~p ~p ~p ~n", [Tx, X, Bs, State]),
-  {noreply, State};
+handle_cast({remove_bindings, none, _, Bindings}, State) ->
+  Exchanges = rabbitmq_pulse_lib:remove_bindings(State#rabbitmq_pulse_state.exchanges, Bindings),
+  NewState = #rabbitmq_pulse_state{connections=State#rabbitmq_pulse_state.connections,
+                                   exchanges=Exchanges},
+  {noreply, NewState};
 
 handle_cast(_, State) ->
   {noreply, State}.

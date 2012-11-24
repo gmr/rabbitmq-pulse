@@ -36,7 +36,7 @@ Todo
   - Connections
   - Channels
 - Handle shutdown cleanly
-- Handle add_binding/remove_binding, create, delete properly
+- Handle create and delete exchange properly
 
 Message Types
 -------------

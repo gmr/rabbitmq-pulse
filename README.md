@@ -1,7 +1,7 @@
 RabbitMQ Pulse
 ==============
-RabbitMQ Pulse is an *experimental* exchange plugin that publishes information made available by the rabbitmq-management
-plugin making cluster monitoring a push event instead of something you poll for.
+RabbitMQ Pulse is an *experimental* exchange plugin for **RabbitMQ 3.0+** that publishes information made available by the
+rabbitmq-management plugin making cluster monitoring a push event instead of something you poll for.
 
 Messages can be published in JSON format as they would be received from the management API or they can be published
 in a format that is compatible with Graphite's carbon AMQP client, providing conversionless integration into Graphite
@@ -203,3 +203,177 @@ Examples
             "sockets_used": 1,
             "uptime": 6092
         }
+
+## Queue Message (JSON)
+
+    Exchange:          rabbitmq-pulse
+    Routing Key:       queue./.test_two
+
+    Properties:
+
+        app_id:        rabbitmq-pulse
+        content_type:  application/json
+        delivery_mode: 1
+        timestamp:     1353718351
+        type:          rabbitmq queue stats
+
+    Message:
+
+      {
+          "policy": "",
+          "exclusive_consumer_tag": "",
+          "messages_ready": 0,
+          "messages_unacknowledged": 0,
+          "messages": 0,
+          "consumers": 1,
+          "active_consumers": 1,
+          "memory": 89096,
+          "backing_queue_status": {
+              "q1": 0,
+              "q2": 0,
+              "delta": [
+                  "delta",
+                  "undefined",
+                  0,
+                  "undefined"
+              ],
+              "q3": 0,
+              "q4": 0,
+              "len": 0,
+              "pending_acks": 0,
+              "target_ram_count": "infinity",
+              "ram_msg_count": 0,
+              "ram_ack_count": 0,
+              "next_seq_id": 25,
+              "persistent_count": 0,
+              "avg_ingress_rate": 0.19991921264616969,
+              "avg_egress_rate": 0.19991921264616969,
+              "avg_ack_ingress_rate": 0.19991921264616969,
+              "avg_ack_egress_rate": 0.19991921264616969
+          },
+          "messages_details": {
+              "rate": 0,
+              "interval": 5002982,
+              "last_event": 1353718221808
+          },
+          "messages_ready_details": {
+              "rate": 0,
+              "interval": 5002982,
+              "last_event": 1353718221808
+          },
+          "messages_unacknowledged_details": {
+              "rate": 0,
+              "interval": 5002982,
+              "last_event": 1353718221808
+          },
+          "incoming": [
+              {
+                  "stats": {
+                      "publish": 25,
+                      "publish_details": {
+                          "rate": 0.1999166347633037,
+                          "interval": 5002085,
+                          "last_event": 1353718221806
+                      }
+                  },
+                  "exchange": {
+                      "name": "test",
+                      "vhost": "/"
+                  }
+              }
+          ],
+          "deliveries": [
+              {
+                  "stats": {
+                      "ack": 15,
+                      "ack_details": {
+                          "rate": 0.19941320669797052,
+                          "interval": 5014713,
+                          "last_event": 1353718218329
+                      },
+                      "deliver": 15,
+                      "deliver_details": {
+                          "rate": 0.19941320669797052,
+                          "interval": 5014713,
+                          "last_event": 1353718218329
+                      },
+                      "deliver_get": 15,
+                      "deliver_get_details": {
+                          "rate": 0.19941320669797052,
+                          "interval": 5014713,
+                          "last_event": 1353718218329
+                      },
+                      "redeliver": 11,
+                      "redeliver_details": {
+                          "rate": 0,
+                          "interval": 5014713,
+                          "last_event": 1353718218329
+                      }
+                  },
+                  "channel_details": {
+                      "name": "127.0.0.1:61941 -> 127.0.0.1:5672 (1)",
+                      "number": 1,
+                      "connection_name": "127.0.0.1:61941 -> 127.0.0.1:5672",
+                      "peer_port": 61941,
+                      "peer_host": "127.0.0.1"
+                  }
+              }
+          ],
+          "message_stats": {
+              "ack": 15,
+              "ack_details": {
+                  "rate": 0.19941320669797052,
+                  "interval": 5014713,
+                  "last_event": 1353718218329
+              },
+              "deliver": 15,
+              "deliver_details": {
+                  "rate": 0.19941320669797052,
+                  "interval": 5014713,
+                  "last_event": 1353718218329
+              },
+              "deliver_get": 15,
+              "deliver_get_details": {
+                  "rate": 0.19941320669797052,
+                  "interval": 5014713,
+                  "last_event": 1353718218329
+              },
+              "redeliver": 11,
+              "redeliver_details": {
+                  "rate": 0,
+                  "interval": 5014713,
+                  "last_event": 1353718218329
+              },
+              "publish": 25,
+              "publish_details": {
+                  "rate": 0.1999166347633037,
+                  "interval": 5002085,
+                  "last_event": 1353718221806
+              }
+          },
+          "consumer_details": [
+              {
+                  "channel_details": {
+                      "name": "127.0.0.1:61941 -> 127.0.0.1:5672 (1)",
+                      "number": 1,
+                      "connection_name": "127.0.0.1:61941 -> 127.0.0.1:5672",
+                      "peer_port": 61941,
+                      "peer_host": "127.0.0.1"
+                  },
+                  "queue_details": {
+                      "name": "test_two",
+                      "vhost": "/"
+                  },
+                  "consumer_tag": "ctag1.0",
+                  "exclusive": false,
+                  "ack_required": true
+              }
+          ],
+          "name": "test_two",
+          "vhost": "/",
+          "durable": true,
+          "auto_delete": false,
+          "arguments": {
+              "x-message-ttl": 60000
+          }
+      }

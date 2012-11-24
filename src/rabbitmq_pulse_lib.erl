@@ -10,7 +10,7 @@
 
 -define(PREFIX, "rabbitmq_pulse").
 -define(DEFAULT_INTERVAL, 5000).
--define(IGNORE_KEYS, [applications, auth_mechanisms, erlang_version, exchange_types, processors, statistics_level]).
+-define(IGNORE_KEYS, [applications, auth_mechanisms, erlang_version, exchange_types, processors, statistics_level, pid, owner_pid, exclusive_consumer_pid, slave_pids, synchronised_slave_pids]).
 -define(OVERVIEW_BINDINGS, [<<"#">>, <<"overview">>]).
 
 %% General functions
@@ -166,15 +166,24 @@ get_node_name() ->
   string:join(string:tokens(atom_to_list(node(self())), "@"), ".").
 
 get_node_name(Node) ->
-  {name, Name}= lists:nth(1, Node),
-  atom_to_list(Name).
+  case lists:keysearch(name, 1, Node) of
+    {value, {name, Name}} ->
+      atom_to_list(Name);
+    false -> "unknown"
+  end.
 
-get_routing_key_tuple(Type, Value) ->
-  list_to_tuple(lists:merge([Type], string:tokens(Value, "@"))).
+get_queues() ->
+  rabbit_mgmt_db:augment_queues([rabbit_mgmt_format:queue(Q) || Q <- rabbit_amqqueue:list()], full).
 
-get_routing_key(Type, Node) ->
-  Value = tuple_to_list(get_routing_key_tuple(Type, get_node_name(Node))),
+get_node_routing_key_tuple(Value) ->
+  list_to_tuple(lists:merge(["node"], string:tokens(Value, "@"))).
+
+get_node_routing_key(Node) ->
+  Value = tuple_to_list(get_node_routing_key_tuple(get_node_name(Node))),
   iolist_to_binary(string:join(Value, ".")).
+
+get_queue_routing_key(Vhost, Name) ->
+  iolist_to_binary(string:join(["queue", binary_to_list(Vhost), binary_to_list(Name)], ".")).
 
 get_username(Args) ->
   case lists:keysearch(<<"username">>, 1, Args) of
@@ -224,6 +233,9 @@ remapped_exchange(Exchange) ->
                                       bindings=[]},
   Remapped.
 
+remapped_queue(Q) ->
+  list_to_tuple([rabbitmq_queue_full |[proplists:get_value(X, Q) || X <- record_info(fields, rabbitmq_queue_full)]]).
+
 routing_key_match({BT, BN, BH}, {NT, NN, NH}) when BT =:= NT, BN =:= NN, BH =:= NH ->
   true;
 routing_key_match({BT, BN, BH}, {_NT, NN, NH}) when BT =:= "*", BN =:= NN, BH =:= NH ->
@@ -238,13 +250,15 @@ routing_key_match({BT, BN, BH}, {_NT, _NN, NH}) when BT =:= "*", BN =:= "*", BH 
   true;
 routing_key_match({BT, BN, BH}, {NT, _NN, _NH}) when BT =:= NT, BN =:= "*", BH =:= "*" ->
   true;
-routing_key_match(BT, {_NT, _NN, _NH}) when BT =:= "#" ->
+routing_key_match({BT, BN, BH}, {NT, NN, _NH}) when BT =:= NT, BN =:= NN, BH =:= "#" ->
   true;
 routing_key_match({BT, BN}, {NT, _NN, _NH}) when BT =:= NT, BN =:= "#" ->
   true;
-routing_key_match({BT, BN, BH}, {NT, NN, _NH}) when BT =:= NT, BN =:= NN, BH =:= "#" ->
+routing_key_match({BT}, {_NT, _NN, _NH}) when BT =:= "#" ->
   true;
-routing_key_match(_, _) ->
+routing_key_match(BT, {_NT, _NN, _NH}) when BT =:= "#" ->
+  true;
+routing_key_match(Binding, Actual) ->
   false.
 
 %% Connection and AMQP specific functions
@@ -319,7 +333,10 @@ build_stats_message(Node) ->
   iolist_to_binary(mochijson2:encode(Values)).
 
 node_stats(Node) ->
-  {get_routing_key("node", Node), build_stats_message(Node)}.
+  {get_node_routing_key(Node), build_stats_message(Node)}.
+
+queue_stats(Vhost, Name, Q) ->
+  {get_queue_routing_key(Vhost, Name), build_stats_message(Q)}.
 
 process_binding_overview(Exchange, Channel) ->
   case length([true || Binding <- Exchange#rabbitmq_pulse_exchange.bindings, lists:member(Binding, ?OVERVIEW_BINDINGS)]) of
@@ -330,19 +347,15 @@ process_binding_overview(Exchange, Channel) ->
       ok
   end.
 
-process_exchange_bindings(Exchange, Channel) ->
-  process_binding_overview(Exchange, Channel),
-  %Nodes = rabbit_mgmt_wm_nodes:all_nodes(),
-  %process_node(Channel, Exchange, Nodes),
-  Queues = rabbit_amqqueue:list().
-
 process_interval(ExchangeName, Exchanges, [Connections]) ->
   [Exchange] = [Exchange || Exchange <- Exchanges, Exchange#rabbitmq_pulse_exchange.exchange =:= ExchangeName],
   Channel = get_channel(Exchange#rabbitmq_pulse_exchange.exchange, Connections),
-  process_exchange_bindings(Exchange, Channel),
+  process_binding_overview(Exchange, Channel),
+  [process_node(Channel, Exchange, N) || N <- rabbit_mgmt_wm_nodes:all_nodes()],
+  [process_queue(Channel, Exchange, Q) || Q <- get_queues()],
   Exchange.
 
-process_node(Channel, Exchange, [Node]) when Exchange#rabbitmq_pulse_exchange.format =:= json ->
+process_node(Channel, Exchange, Node) when Exchange#rabbitmq_pulse_exchange.format =:= json ->
   case should_publish_node_stats(Exchange, Node) of
     true ->
       {RoutingKey, Message} = node_stats(Node),
@@ -358,13 +371,26 @@ process_overview(Exchange, Channel) when Exchange#rabbitmq_pulse_exchange.format
   [publish_graphite_message(Channel, Exchange, Key, Value) || {Key, Value} <- Pairs];
 
 process_overview(Exchange, Channel) when Exchange#rabbitmq_pulse_exchange.format =:= json ->
-  rabbit_log:info("processing json~n"),
   Overview = rabbit_mgmt_db:get_overview(),
   publish_json_message(Channel, Exchange, <<"overview">>, iolist_to_binary(mochijson2:encode(Overview)), <<"rabbitmq cluster overview">>).
 
-%process_queues(Channel, Exchange, [Queue]) ->
+process_queue(Channel, Exchange, Q) when Exchange#rabbitmq_pulse_exchange.format =:= json ->
+  Queue = remapped_queue(Q),
+  case should_publish_queue_stats(Exchange, Queue) of
+    true ->
+      {RoutingKey, Message} = queue_stats(Queue#rabbitmq_queue_full.vhost, Queue#rabbitmq_queue_full.name, Q),
+      publish_json_message(Channel, Exchange, RoutingKey, Message, <<"rabbitmq queue stats">>),
+      ok;
+    false ->
+      rabbit_log:info("Skipped queue: ~p~n", [Queue])
+  end.
 
 should_publish_node_stats(Exchange, Node) ->
-  NodeTuple = get_routing_key_tuple("node", get_node_name(Node)),
+  NodeTuple = get_node_routing_key_tuple(get_node_name(Node)),
   lists:any(fun (V) -> V =:= true end,
             [routing_key_match(get_binding_tuple(Binding), NodeTuple) || Binding <- Exchange#rabbitmq_pulse_exchange.bindings]).
+
+should_publish_queue_stats(Exchange, Queue) ->
+  QueueTuple = {"queue", binary_to_list(Queue#rabbitmq_queue_full.vhost), binary_to_list(Queue#rabbitmq_queue_full.name)},
+  lists:any(fun (V) -> V =:= true end,
+            [routing_key_match(get_binding_tuple(Binding), QueueTuple) || Binding <- Exchange#rabbitmq_pulse_exchange.bindings]).

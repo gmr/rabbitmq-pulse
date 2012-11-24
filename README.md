@@ -9,8 +9,8 @@ and systems like rocksteady.
 
 This is a work in progress and is not meant for production systems (yet).
 
-Overview
---------
+Routing Overview
+----------------
 The *x-pulse* exchange type added by RabbitMQ Pulse creates a publishing exchange that will send status messages at pre-specified
 intervals to bound objects matching the routing key patterns it uses.
 
@@ -19,7 +19,16 @@ The rabbitmq-pulse plugin will publish cluster, node and queue statistics to a t
  you could bind to *.rabbit.megabunny. Or to get node stats for all hosts, you could do node.rabbit.*.  RabbitMQ Pulse uses
  a similar style of routing-key behavior as the topic exchange, but without the partial word matching (ie no node.rab*.*).
 
-The messages are JSON serialized data with stats provided by the rabbitmq-management plugin.
+### Example Routing Keys / Bindings
+
+    "#"                       Receive all stats
+    "overview"                Receive only the overview stats
+    "node.rabbit.*"           Receive stats for all nodes in the cluster
+    "node.rabbit.myhost"      Receive stats only for the node "rabbit@myhost"
+    "queue.#"                 Receive stats for all queues, but only queues
+    "queue./.*"               Receive stats for the / virtual host only
+    "queue./.myqueue"         Receive stats for myqueue in the / virtual host
+    "queue.*.foo"             Receive stats for all queues named "foo" in any virtual host
 
 Todo
 ----
@@ -120,8 +129,7 @@ Examples
             }
         }
 
-
-## Cluster Overview Single Stat Message (Graphite)
+### Cluster Overview Single Stat Message (Graphite)
 
     Exchange:      graphite
     Routing Key:   rabbitmq_pulse.overview.rabbit.localhost.message_stats.deliver_details.rate
@@ -188,8 +196,7 @@ Examples
             "uptime": 12400
         }
 
-
-## Queue Message (JSON)
+### Queue Message (JSON)
 
     Exchange:          rabbitmq-pulse
     Routing Key:       queue./.test_two

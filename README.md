@@ -24,7 +24,6 @@ The messages are JSON serialized data with stats provided by the rabbitmq-manage
 Todo
 ----
 - Add the ability to bind to get stats for:
-  - Queues
   - Connections
   - Channels
 - Handle shutdown cleanly
@@ -160,7 +159,7 @@ Examples
                     "description": "RabbitMQ Management",
                     "path": "/",
                     "port": 15672
-                }, 
+                },
                 {
                     "description": "Redirect to port 15672",
                     "ignore_in_use": true,
